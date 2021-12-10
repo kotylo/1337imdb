@@ -25,5 +25,6 @@
             "matches": ["*://1337x.to/*"],
             "js": ["content-script.js"]
         }
-    ]
+    ],
+    "host_permissions": ["https://imdb.com/*"]
 }
