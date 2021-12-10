@@ -2,5 +2,11 @@
     "name": "1337 IMDB",
     "description": "Gets the IMDB rating for 1337 Website",
     "version": "1.0",
-    "manifest_version": 3
+    "manifest_version": 3,
+    "background": {
+        "service_worker": "background.js"
+    },
+    "permissions": [
+        "storage"
+    ]
   }
