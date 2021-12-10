@@ -8,5 +8,11 @@
     },
     "permissions": [
         "storage"
-    ]
-  }
+    ],
+    "action": {
+        "default_popup": "popup.html"
+    },
+    "icons": {
+        "128": "/images/icon128.png"
+    }
+}
