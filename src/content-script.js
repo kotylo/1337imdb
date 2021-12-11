@@ -24,10 +24,10 @@ for (let i = 0; i < trElements.length; i++) {
         iconElement: icon,
     });
 
-    // temp testing 3 items
-    if (i > 5){
-        break;
-    }
+    // temp testing limited items
+    // if (i > 5){
+    //     break;
+    // }
 }
 
 document.body.style.backgroundColor = "orange";
@@ -144,7 +144,7 @@ function getMovieInfoFromIMDB(movie) {
         let doc = parser.parseFromString(html, "text/html");
         let [link] = doc.getElementsByClassName("findResult");
         if (link == null) {
-            console.error(`link is null for movie '${movie.name}'. Try to call it yourself: https://www.imdb.com/find?q=${movie.name}&s=tt&ref_=fn_ft&count=3`);
+            console.error(`link is null for movie '${movie.name}'. Try to call it yourself: https://www.imdb.com/find?q=${movie.name.replace(/\s/g, "%20")}&s=tt&ttype=ft&ref_=fn_ft&count=3`);
             return;
         }
         let [a] = link.getElementsByTagName("a");

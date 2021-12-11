@@ -1,22 +1,20 @@
 // Initialize button with user's preferred color
-let changeColor = document.getElementById("changeColor");
+let clearCache = document.getElementById("clearCache");
 
 chrome.storage.sync.get("color", ({ color }) => {
-    changeColor.style.backgroundColor = color;
+    clearCache.style.backgroundColor = color;
 });
 
-changeColor.addEventListener("click", async () => {
+clearCache.addEventListener("click", async () => {
     let [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
     chrome.scripting.executeScript({
         target: { tabId: tab.id },
-        function: setPageBackgroundColor
+        function: clearCacheFunction
     });
 });
 
-function setPageBackgroundColor() {
-    chrome.storage.sync.get("color", ({ color}) => {
-        document.body.style.backgroundColor = color;
-    });
+function clearCacheFunction() {
+    chrome.storage.local.clear();
 };
 
