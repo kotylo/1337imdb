@@ -94,6 +94,11 @@ function getOpacityPercentage(ratingCount) {
 }
 
 function getMovieInfo(movie) {
+    // in case you need to debug some specific movie:
+    // if (movie.name.indexOf(" Son") > 0) {
+    //     return getMovieInfoFromIMDB(movie);
+    // }
+    // return;
     return readLocalStorage(movie.name).then(value => {
         if (value !== undefined) {
             // merge current movie object with the local storage one, to have the actual iconElement from DOM
@@ -142,16 +147,40 @@ function getMovieInfoFromIMDB(movie) {
     .then(html => {
         let parser = new DOMParser();
         let doc = parser.parseFromString(html, "text/html");
-        let [link] = doc.getElementsByClassName("findResult");
-        if (link == null) {
-            console.error(`link is null for movie '${movie.name}'. Try to call it yourself: https://www.imdb.com/find?q=${movie.name.replace(/\s/g, "%20")}&s=tt&ttype=ft&ref_=fn_ft&count=3`);
+        let links = doc.getElementsByClassName("findResult");
+        if (links.length == 0) {
+            console.error(`no links for movie '${movie.name}'. ${getLinkToImdbText(movie.name)}`);
             return;
         }
-        let [a] = link.getElementsByTagName("a");
-        if (a == null) {
-            console.error("a is null");
+
+        let a = null;
+        for (let i = 0; i < links.length; i++) {
+            let link = links[i];
+            let aElements = link.getElementsByTagName("a");
+
+            for (let j = 0; j < aElements.length; j++) {
+                let aElement = aElements[j];
+                if (aElement.textContent == ""){
+                    continue;
+                }
+
+                var linkMovieName = getMovieName(link.textContent);
+                if (fuzzyMatch(linkMovieName, movie.name)) {
+                    a = aElement;
+                    break;
+                }
+            }
+
+            if (a != null) {
+                break;
+            }
+        }
+
+        if (a == null){
+            console.error(`couldn't find any matching links. Try investigating this link: ${getLinkToImdbText(movie.name)}`);
             return;
         }
+
         let href = a.getAttribute("href");
         if (href == null) {
             console.error("href is null");
@@ -235,6 +264,30 @@ function getMovieInfoFromIMDB(movie) {
         console.log(`${movie.name} | rating: ${movie.rating}`);
         showRating(movie);
     });
+}
+
+function getLinkToImdbText(movieName) {
+    return `Try to call it yourself: https://www.imdb.com/find?q=${movieName.replace(/\s/g, "%20")}&s=tt&ttype=ft&ref_=fn_ft&count=3`;
+}
+
+function fuzzyMatch(str1, str2) {
+    let str1Lower = str1.toLowerCase();
+    let str2Lower = str2.toLowerCase();
+    let str1Length = str1.length;
+    let str2Length = str2.length;
+
+    let maxLength = str1Length > str2Length ? str1Length : str2Length;
+
+    let count = 0;
+    for (let i = 0; i < maxLength; i++) {
+        let char1 = str1Lower[i];
+        let char2 = str2Lower[i];
+        if (char1 == char2) {
+            count++;
+        }
+    }
+
+    return count / maxLength > 0.7;
 }
 
 function getScriptWithType(scripts, type) {
