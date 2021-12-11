@@ -26,5 +26,5 @@
             "js": ["content-script.js"]
         }
     ],
-    "host_permissions": ["https://imdb.com/*"]
+    "host_permissions": ["https://www.imdb.com/*"]
 }
