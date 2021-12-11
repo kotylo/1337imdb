@@ -45,10 +45,17 @@ function showRating(movie) {
     let link = document.createElement("a");
     link.href = `https://www.imdb.com${movie.href}`;
     link.target = "_blank";
+    if (movie.imdbName != null) {
+        link.title = `${movie.imdbName} on IMDB`;
+    }
     insertAfter(link, movie.iconElement);
 
     let imdb = document.createElement("div");
-    imdb.textContent = `${movie.rating}`;
+    if (movie.rating == null) {
+        imdb.textContent = `N/A`;
+    } else {
+        imdb.textContent = `${movie.rating}`;
+    }
 
     let ratingCountPercentage = getOpacityPercentage(movie.ratingCount);
     let alphaColor = getColorFromPercentage(ratingCountPercentage);
@@ -67,12 +74,14 @@ function showRating(movie) {
     imdb.style.float = "left";
     link.appendChild(imdb);
 
-    let votesContainer = document.createElement("div");
-    votesContainer.style.float = "right";
-    votesContainer.style.fontSize = "5px";
-    votesContainer.textContent = `${movie.ratingCount} v.`;
-    votesContainer.style.marginLeft = "5px";
-    imdb.appendChild(votesContainer);
+    if (movie.ratingCount > 0) {
+        let votesContainer = document.createElement("div");
+        votesContainer.style.float = "right";
+        votesContainer.style.fontSize = "5px";
+        votesContainer.textContent = `${movie.ratingCount} v.`;
+        votesContainer.style.marginLeft = "5px";
+        imdb.appendChild(votesContainer);
+    }
 }
 
 function getColorFromPercentage(percentage) {
@@ -94,8 +103,8 @@ function getOpacityPercentage(ratingCount) {
 }
 
 function getMovieInfo(movie) {
-    // in case you need to debug some specific movie:
-    // if (movie.name.indexOf(" Son") > 0) {
+    // //in case you need to debug some specific movie:
+    // if (movie.name.indexOf("One Shot") > 0) {
     //     return getMovieInfoFromIMDB(movie);
     // }
     // return;
@@ -153,27 +162,9 @@ function getMovieInfoFromIMDB(movie) {
             return;
         }
 
-        let a = null;
-        for (let i = 0; i < links.length; i++) {
-            let link = links[i];
-            let aElements = link.getElementsByTagName("a");
-
-            for (let j = 0; j < aElements.length; j++) {
-                let aElement = aElements[j];
-                if (aElement.textContent == ""){
-                    continue;
-                }
-
-                var linkMovieName = getMovieName(link.textContent);
-                if (fuzzyMatch(linkMovieName, movie.name)) {
-                    a = aElement;
-                    break;
-                }
-            }
-
-            if (a != null) {
-                break;
-            }
+        let a = findLinkWithFuzziness(links, movie, 0.75);
+        if (a == null){
+            a = findLinkWithFuzziness(links, movie, 0.5);
         }
 
         if (a == null){
@@ -193,6 +184,7 @@ function getMovieInfoFromIMDB(movie) {
         }
         movie.id = id;
         movie.href = href;
+        movie.imdbName = getMovieName(a.textContent);
         return movie;
     })
     .then(movie => {
@@ -232,20 +224,34 @@ function getMovieInfoFromIMDB(movie) {
                 return;
             }
             var parsedJson = JSON.parse(json);
-            let rating = parsedJson.aggregateRating.ratingValue;
-            if (rating == null) {
-                console.error("rating is null");
-                return;
-            }
+            if (parsedJson.aggregateRating != null) {    
+                let rating = parsedJson.aggregateRating.ratingValue;
+                if (rating == null) {
+                    console.error("rating is null");
+                    return;
+                }
 
-            let ratingCount = parsedJson.aggregateRating.ratingCount;
-            if (ratingCount == null) {
-                console.error("ratingCount is null");
-                return;
-            }
+                let ratingCount = parsedJson.aggregateRating.ratingCount;
+                if (ratingCount == null) {
+                    console.error("ratingCount is null");
+                    return;
+                }
 
-            movie.rating = rating;
-            movie.ratingCount = ratingCount;
+                movie.rating = rating;
+                movie.ratingCount = ratingCount;
+            }else{
+                // in case the movie is not rated, set the rating to 0
+                movie.rating = 0;
+                movie.ratingCount = 0;
+
+                // try to get the release date
+                let releaseDate = parsedJson.datePublished;
+                if (releaseDate == null) {
+                    console.error(`aggregateRating is null and releaseDate is null for movie '${movie.name}'`);
+                    return;
+                }
+                movie.releaseDate = releaseDate;
+            }
             return movie;
         });
     })
@@ -266,28 +272,53 @@ function getMovieInfoFromIMDB(movie) {
     });
 }
 
-function getLinkToImdbText(movieName) {
-    return `Try to call it yourself: https://www.imdb.com/find?q=${movieName.replace(/\s/g, "%20")}&s=tt&ttype=ft&ref_=fn_ft&count=3`;
-}
+function findLinkWithFuzziness(links, movie, fuzzyValue){
+    let a = null;
+    for (let i = 0; i < links.length; i++) {
+        let link = links[i];
+        let aElements = link.getElementsByTagName("a");
 
-function fuzzyMatch(str1, str2) {
-    let str1Lower = str1.toLowerCase();
-    let str2Lower = str2.toLowerCase();
-    let str1Length = str1.length;
-    let str2Length = str2.length;
+        for (let j = 0; j < aElements.length; j++) {
+            let aElement = aElements[j];
+            if (aElement.textContent == ""){
+                continue;
+            }
 
-    let maxLength = str1Length > str2Length ? str1Length : str2Length;
+            let linkMovieName = getMovieName(aElement.textContent);
+            let currentMovieNameWithoutYear = movie.name.replace(/\s\d{4}\s*$/g, "");
+            if (fuzzyMatch(linkMovieName, currentMovieNameWithoutYear, fuzzyValue)) {
+                a = aElement;
+                break;
+            }
+        }
 
-    let count = 0;
-    for (let i = 0; i < maxLength; i++) {
-        let char1 = str1Lower[i];
-        let char2 = str2Lower[i];
-        if (char1 == char2) {
-            count++;
+        if (a != null) {
+            break;
+        }
+
+        if (i > 5){
+            console.log(`skipping more than 5 links for movie '${movie.name}'`);
+            break;
         }
     }
+    return a;
+}
 
-    return count / maxLength > 0.7;
+function getLinkToImdbText(movieName) {
+    return `Try to call it yourself: https://www.imdb.com/find?q=${movieName.replace(/\s/g, "%20")}&s=tt&ttype=ft&ttype=tv&ref_=fn_ft&count=3`;
+}
+
+function fuzzyMatch(str1, str2, fuzzyScore) {
+    let results = FuzzySet([str1]).get(str2);
+    if (results == null){
+        return false;
+    }
+
+    let [result] = results;
+    if (result.length > 1){
+        return result[0] >= fuzzyScore;
+    }
+    return false;
 }
 
 function getScriptWithType(scripts, type) {
@@ -311,7 +342,7 @@ function getMovieName(rawName) {
     movieName = movieName.replace(/[\(\)]/g, "");
     // remove everything after year in the movieName
     let year = movieName.match(/\s\d{4}\s/);
-    if (year.length > 0) {
+    if (year != null && year.length > 0) {
         movieName = movieName.substring(0, year.index + year[0].length);
     }
     movieName = movieName.trim();

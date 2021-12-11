@@ -23,7 +23,7 @@
     "content_scripts": [
         {
             "matches": ["*://1337x.to/*"],
-            "js": ["content-script.js"]
+            "js": ["libraries/fuzzyset.js", "content-script.js"]
         }
     ],
     "host_permissions": ["https://www.imdb.com/*"]
