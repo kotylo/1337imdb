@@ -7,4 +7,5 @@ This extension shows the IMDB rating on the 1337x.to website in order to see the
 The opacity is calculated in case the movie receives less than 1000 votes.
 
 # Install
-Just Load Unpacked the `src` folder and you're good to go.
+- Open `chrome://extensions` URL in Chrome
+- Click on `Load Unpacked` button, select the `src` folder and you're good to go.
