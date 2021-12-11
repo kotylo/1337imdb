@@ -50,7 +50,11 @@ function showRating(movie) {
 
     let imdb = document.createElement("div");
     imdb.textContent = `${movie.rating}`;
-    imdb.style.backgroundColor = "#F5C518";
+
+    let ratingCountPercentage = getOpacityPercentage(movie.ratingCount);
+    let alphaColor = getColorFromPercentage(ratingCountPercentage);
+    imdb.style.backgroundColor = `#F5C518${alphaColor}`;
+
     imdb.style.border = "1px solid black";
     imdb.style.padding = "5px";
     imdb.style.marginRight = "5px";
@@ -72,6 +76,24 @@ function showRating(movie) {
     imdb.appendChild(votesContainer);
 }
 
+function getColorFromPercentage(percentage) {
+    let alpha = Math.round(percentage * 255 / 100);
+    let alphaHex = alpha.toString(16);
+    return alphaHex;
+}
+
+function getOpacityPercentage(ratingCount) {
+    let max = 1000;
+    let min = 0;
+    let range = max - min;
+    
+    let percentage = ratingCount / range * 100;
+    if (percentage > 100){
+        return 100;
+    }
+    return percentage;
+}
+
 function getMovieInfo(movie) {
     return new Promise((resolve, reject) => {
         chrome.runtime.sendMessage({action: "findMovie", movie: movie}, html => {
@@ -87,7 +109,7 @@ function getMovieInfo(movie) {
         let doc = parser.parseFromString(html, "text/html");
         let [link] = doc.getElementsByClassName("findResult");
         if (link == null) {
-            console.error(`link is null for movie '${movie.name}'`);
+            console.error(`link is null for movie '${movie.name}'. Try to call it yourself: https://www.imdb.com/find?q=${movie.name}&s=tt&ref_=fn_ft&count=3`);
             return;
         }
         let [a] = link.getElementsByTagName("a");
