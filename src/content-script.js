@@ -10,7 +10,6 @@ for (let i = 0; i < trElements.length; i++) {
         continue;
     }
 
-    //td.style.backgroundColor = "yellow";
     var moveieName = td.textContent;
 
     var [icon] = td.getElementsByClassName("icon");
@@ -95,6 +94,42 @@ function getOpacityPercentage(ratingCount) {
 }
 
 function getMovieInfo(movie) {
+    return readLocalStorage(movie.name).then(value => {
+        if (value !== undefined) {
+            // merge current movie object with the local storage one, to have the actual iconElement from DOM
+            let mergedMovie = Object.assign(value.movie, movie);
+
+            showRating(mergedMovie);
+
+            // in case the timestamp is older than 1 day remove the movie from the cache
+            let now = new Date();
+            let oneDay = 24 * 60 * 60 * 1000;
+            let diff = now - value.timestamp;
+            if (diff > oneDay) {
+                chrome.storage.local.remove(movie.name);
+            }
+            return;
+        }
+    },
+    () => {
+        // if the movie is not in the cache, get the movie info from imdb
+        return getMovieInfoFromIMDB(movie);
+    });
+}
+
+async function readLocalStorage(key) {
+    return new Promise((resolve, reject) => {
+        chrome.storage.local.get([key], function (result) {
+            if (result[key] === undefined) {
+                reject();
+            } else {
+                resolve(result[key]);
+            }
+        });
+    });
+};
+
+function getMovieInfoFromIMDB(movie) {
     return new Promise((resolve, reject) => {
         chrome.runtime.sendMessage({action: "findMovie", movie: movie}, html => {
             if (html) {
@@ -189,6 +224,14 @@ function getMovieInfo(movie) {
         if (movie == null) {
             return;
         }
+
+        chrome.storage.local.set({
+            [movie.name]: {
+                movie: movie,
+                timestamp: Date.now()
+            }
+        });
+
         console.log(`${movie.name} | rating: ${movie.rating}`);
         showRating(movie);
     });
