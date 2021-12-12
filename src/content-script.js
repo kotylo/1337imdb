@@ -52,7 +52,16 @@ function showRating(movie) {
 
     let imdb = document.createElement("div");
     if (movie.rating == null) {
-        imdb.textContent = `N/A`;
+        let releaseDateString = "";
+        if (movie.releaseDate != null){
+            let date = new Date(movie.releaseDate);
+            if (date > new Date()) {
+                releaseDateString = ` (release: ${movie.releaseDate})`;
+            }
+        }
+        
+        imdb.textContent = `N/A${releaseDateString}`;
+
     } else {
         imdb.textContent = `${movie.rating}`;
     }
@@ -75,10 +84,12 @@ function showRating(movie) {
     link.appendChild(imdb);
 
     if (movie.ratingCount > 0) {
+        const upOrDownArrow = movie.oldRatingValue != null ? (movie.ratingValue > movie.oldRatingValue ? "↑" : "↓") : "";
+
         let votesContainer = document.createElement("div");
         votesContainer.style.float = "right";
         votesContainer.style.fontSize = "5px";
-        votesContainer.textContent = `${movie.ratingCount} v.`;
+        votesContainer.textContent = `${movie.ratingCount} v.${upOrDownArrow}`;
         votesContainer.style.marginLeft = "5px";
         imdb.appendChild(votesContainer);
     }
@@ -104,23 +115,27 @@ function getOpacityPercentage(ratingCount) {
 
 function getMovieInfo(movie) {
     // //in case you need to debug some specific movie:
-    // if (movie.name.indexOf("One Shot") > 0) {
+    // if (movie.name.indexOf("One Shot") >= 0) {
     //     return getMovieInfoFromIMDB(movie);
     // }
     // return;
     return readLocalStorage(movie.name).then(value => {
         if (value !== undefined) {
-            // merge current movie object with the local storage one, to have the actual iconElement from DOM
-            let mergedMovie = Object.assign(value.movie, movie);
-
-            showRating(mergedMovie);
-
             // in case the timestamp is older than 1 day remove the movie from the cache
             let now = new Date();
             let oneDay = 24 * 60 * 60 * 1000;
             let diff = now - value.timestamp;
             if (diff > oneDay) {
+                const oldMovie = movie;
                 chrome.storage.local.remove(movie.name);
+                return getMovieInfoFromIMDB(movie).then((m) => {
+                    // in case the rating value changed, update the local storage
+                    updateMovieInLocalStorage(m, oldMovie);
+                });
+            } else {
+                // merge current movie object with the local storage one, to have the actual iconElement from DOM
+                let mergedMovie = Object.assign(value.movie, movie);
+                showRating(mergedMovie);
             }
             return;
         }
@@ -129,6 +144,28 @@ function getMovieInfo(movie) {
         // if the movie is not in the cache, get the movie info from imdb
         return getMovieInfoFromIMDB(movie);
     });
+}
+
+function updateMovieInLocalStorage(newMovie, oldMovie) {
+    let hasChanges = false;
+    if (oldMovie.ratingValue !== newMovie.ratingValue) {
+        newMovie.oldRatingValue = oldMovie.ratingValue;
+        hasChanges = true;
+    }
+
+    if (oldMovie.ratingCount !== newMovie.ratingCount) {
+        newMovie.oldRatingCount = oldMovie.ratingCount;
+        hasChanges = true;
+    }
+
+    if (hasChanges) {
+        chrome.storage.local.set({
+            [newMovie.name]: {
+                movie: newMovie,
+                timestamp: new Date(),
+            },
+        });
+    }
 }
 
 async function readLocalStorage(key) {
@@ -241,16 +278,14 @@ function getMovieInfoFromIMDB(movie) {
                 movie.ratingCount = ratingCount;
             }else{
                 // in case the movie is not rated, set the rating to 0
-                movie.rating = 0;
-                movie.ratingCount = 0;
+                movie.rating = null;
+                movie.ratingCount = null;
 
                 // try to get the release date
                 let releaseDate = parsedJson.datePublished;
-                if (releaseDate == null) {
-                    console.error(`aggregateRating is null and releaseDate is null for movie '${movie.name}'`);
-                    return;
+                if (releaseDate != null) {
+                    movie.releaseDate = releaseDate;
                 }
-                movie.releaseDate = releaseDate;
             }
             return movie;
         });
@@ -267,8 +302,9 @@ function getMovieInfoFromIMDB(movie) {
             }
         });
 
-        console.log(`${movie.name} | rating: ${movie.rating}`);
+        console.log(`Saved: ${movie.name} | rating: ${movie.rating}`);
         showRating(movie);
+        return movie;
     });
 }
 

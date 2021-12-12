@@ -22,7 +22,12 @@
     },
     "content_scripts": [
         {
-            "matches": ["*://1337x.to/*"],
+            "matches": [
+                "*://1337x.to/*",
+                "*://www.1337x.to/*",
+                "*://1337xx.to/*",
+                "*://www.1337xx.to/*"
+            ],
             "js": ["libraries/fuzzyset.js", "content-script.js"]
         }
     ],
