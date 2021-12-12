@@ -1,6 +1,6 @@
 {
     "name": "1337 IMDB",
-    "description": "Gets the IMDB rating for 1337 Website",
+    "description": "Gets the IMDB rating for 1337 Website for the Movies tab",
     "version": "1.0",
     "manifest_version": 3,
     "background": {
