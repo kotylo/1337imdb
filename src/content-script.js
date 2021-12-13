@@ -57,6 +57,20 @@ function showRating(movie) {
         imdb.textContent = `${movie.rating}`;
     }
 
+    // arrows for old rating vs new rating
+    if (movie.oldRating != null) {
+        const upOrDownArrow = movie.rating > movie.oldRating ? "↑" : "↓";
+        const color = movie.rating > movie.oldRating ? "green" : "red";
+
+        let arrowContainer = document.createElement("div");
+        arrowContainer.style.float = "right";
+        arrowContainer.style.fontSize = "8px";
+        arrowContainer.textContent = upOrDownArrow;
+        arrowContainer.style.marginLeft = "5px";
+        arrowContainer.style.color = color;
+        imdb.appendChild(arrowContainer);
+    }
+
     let ratingCountPercentage = getOpacityPercentage(movie.ratingCount);
     let alphaColor = getColorFromPercentage(ratingCountPercentage);
     imdb.style.backgroundColor = `#F5C518${alphaColor}`;
@@ -75,12 +89,10 @@ function showRating(movie) {
     link.appendChild(imdb);
 
     // show rating count or release date
-    const upOrDownArrow = movie.oldRatingValue != null ? (movie.ratingValue > movie.oldRatingValue ? "↑" : "↓") : "";
-
     let ratingCountString = "";
     if (movie.ratingCount > 0) {
-        ratingCountString = `${movie.ratingCount} v.${upOrDownArrow}`;
-    }else{
+        ratingCountString = `${movie.ratingCount} v.`;
+    } else {
         let releaseDateString = "";
         if (movie.releaseDate != null){
             let date = new Date(movie.releaseDate);
@@ -125,14 +137,16 @@ function getMovieInfo(movie) {
     //     return getMovieInfoFromIMDB(movie);
     // }
     // return;
-    return readLocalStorage(movie.name).then(value => {
-        if (value !== undefined) {
+    return readLocalStorage(movie.name).then(cachedItem => {
+        if (cachedItem !== undefined) {
             // in case the timestamp is older than 1 day remove the movie from the cache
-            let now = new Date();
-            let oneDay = 24 * 60 * 60 * 1000;
-            let diff = now - value.timestamp;
-            if (diff > oneDay) {
-                const oldMovie = movie;
+            let now = Date.now();
+            let oneDayInMs = 24 * 60 * 60 * 1000;
+            //let minutes5inMs = 5 * 60 * 1000;
+            let diff = now - cachedItem.timestamp;
+            if (isNaN(diff) || diff > oneDayInMs) {
+                //console.log(`Updating movie ${movie.name} in cache...`);
+                const oldMovie = cachedItem.movie;
                 chrome.storage.local.remove(movie.name);
                 return getMovieInfoFromIMDB(movie).then((m) => {
                     // in case the rating value changed, update the local storage
@@ -140,7 +154,7 @@ function getMovieInfo(movie) {
                 });
             } else {
                 // merge current movie object with the local storage one, to have the actual iconElement from DOM
-                let mergedMovie = Object.assign(value.movie, movie);
+                let mergedMovie = Object.assign(cachedItem.movie, movie);
                 showRating(mergedMovie);
             }
             return;
@@ -154,8 +168,8 @@ function getMovieInfo(movie) {
 
 function updateMovieInLocalStorage(newMovie, oldMovie) {
     let hasChanges = false;
-    if (oldMovie.ratingValue !== newMovie.ratingValue) {
-        newMovie.oldRatingValue = oldMovie.ratingValue;
+    if (oldMovie.rating !== newMovie.rating) {
+        newMovie.oldRating = oldMovie.rating;
         hasChanges = true;
     }
 
@@ -165,11 +179,12 @@ function updateMovieInLocalStorage(newMovie, oldMovie) {
     }
 
     if (hasChanges) {
+        console.log(`Updating changed rating for the movie ${newMovie.name}`);
         chrome.storage.local.set({
             [newMovie.name]: {
                 movie: newMovie,
-                timestamp: new Date(),
-            },
+                timestamp: Date.now()
+            }
         });
     }
 }
