@@ -52,16 +52,7 @@ function showRating(movie) {
 
     let imdb = document.createElement("div");
     if (movie.rating == null) {
-        let releaseDateString = "";
-        if (movie.releaseDate != null){
-            let date = new Date(movie.releaseDate);
-            if (date > new Date()) {
-                releaseDateString = ` (release: ${movie.releaseDate})`;
-            }
-        }
-        
-        imdb.textContent = `N/A${releaseDateString}`;
-
+        imdb.textContent = `N/A`;
     } else {
         imdb.textContent = `${movie.rating}`;
     }
@@ -83,13 +74,28 @@ function showRating(movie) {
     imdb.style.float = "left";
     link.appendChild(imdb);
 
-    if (movie.ratingCount > 0) {
-        const upOrDownArrow = movie.oldRatingValue != null ? (movie.ratingValue > movie.oldRatingValue ? "↑" : "↓") : "";
+    // show rating count or release date
+    const upOrDownArrow = movie.oldRatingValue != null ? (movie.ratingValue > movie.oldRatingValue ? "↑" : "↓") : "";
 
+    let ratingCountString = "";
+    if (movie.ratingCount > 0) {
+        ratingCountString = `${movie.ratingCount} v.${upOrDownArrow}`;
+    }else{
+        let releaseDateString = "";
+        if (movie.releaseDate != null){
+            let date = new Date(movie.releaseDate);
+            if (date > new Date()) {
+                releaseDateString = `release: ${movie.releaseDate}`;
+            }
+            ratingCountString = releaseDateString;
+        }
+    }
+
+    if (ratingCountString != "") {
         let votesContainer = document.createElement("div");
         votesContainer.style.float = "right";
         votesContainer.style.fontSize = "5px";
-        votesContainer.textContent = `${movie.ratingCount} v.${upOrDownArrow}`;
+        votesContainer.textContent = ratingCountString;
         votesContainer.style.marginLeft = "5px";
         imdb.appendChild(votesContainer);
     }
@@ -310,7 +316,9 @@ function getMovieInfoFromIMDB(movie) {
 
 function findLinkWithFuzziness(links, movie, fuzzyValue){
     let a = null;
-    for (let i = 0; i < links.length; i++) {
+    let fuzzyMatches = [];
+    let i = 0;
+    for (i = 0; i < links.length; i++) {
         let link = links[i];
         let aElements = link.getElementsByTagName("a");
 
@@ -322,21 +330,33 @@ function findLinkWithFuzziness(links, movie, fuzzyValue){
 
             let linkMovieName = getMovieName(aElement.textContent);
             let currentMovieNameWithoutYear = movie.name.replace(/\s\d{4}\s*$/g, "");
-            if (fuzzyMatch(linkMovieName, currentMovieNameWithoutYear, fuzzyValue)) {
-                a = aElement;
+            let val = fuzzyMatch(linkMovieName, currentMovieNameWithoutYear);
+            if (val >= fuzzyValue) {
+                fuzzyMatches.push({
+                    value: val,
+                    a: aElement,
+                    linkMovieName: linkMovieName
+                });
                 break;
             }
         }
 
-        if (a != null) {
-            break;
-        }
-
-        if (i > 5){
-            console.log(`skipping more than 5 links for movie '${movie.name}'`);
+        const maxLinksToCheck = 15;
+        if (i > maxLinksToCheck){
+            if (fuzzyMatches.length == 0){
+                console.log(`skipping more than ${maxLinksToCheck} links for movie '${movie.name}' with no matches.`);
+            }
             break;
         }
     }
+
+    if (fuzzyMatches.length){
+        fuzzyMatches.sort((a, b) => b.value - a.value);
+        const match = fuzzyMatches[0];
+        a = match.a;
+        console.log(`found a match (${match.linkMovieName}) with score ${match.value} for movie '${movie.name}' on the ${i} position`);
+    }
+
     return a;
 }
 
@@ -344,17 +364,25 @@ function getLinkToImdbText(movieName) {
     return `Try to call it yourself: https://www.imdb.com/find?q=${movieName.replace(/\s/g, "%20")}&s=tt&ttype=ft&ttype=tv&ref_=fn_ft&count=3`;
 }
 
-function fuzzyMatch(str1, str2, fuzzyScore) {
+function fuzzyMatch(str1, str2, fuzzyValue) {
+    const val = fuzzyMatch(str1, str2, fuzzyValue);
+    if (val >= fuzzyValue) {
+        return true;
+    }
+    return false;
+}
+
+function fuzzyMatch(str1, str2) {
     let results = FuzzySet([str1]).get(str2);
     if (results == null){
-        return false;
+        return -1;
     }
 
     let [result] = results;
     if (result.length > 1){
-        return result[0] >= fuzzyScore;
+        return result[0];
     }
-    return false;
+    return -1;
 }
 
 function getScriptWithType(scripts, type) {
