@@ -15,6 +15,23 @@ clearCache.addEventListener("click", async () => {
 });
 
 function clearCacheFunction() {
-    chrome.storage.local.clear();
+    console.log("Settings timestamp to null for all items in the storage");
+    chrome.storage.local.get(null, items => {
+        if (items){
+            for (let key in items) {
+                var item = items[key];
+                console.dir(item);
+                if (item == null){
+                    continue;
+                }
+                
+                item.timestamp = null;
+
+                chrome.storage.local.set(item);
+            }
+        }
+    });
+
+    //chrome.storage.local.clear();
 };
 
