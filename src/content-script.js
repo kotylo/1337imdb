@@ -68,6 +68,7 @@ function showRating(movie) {
         arrowContainer.textContent = upOrDownArrow;
         arrowContainer.style.marginLeft = "5px";
         arrowContainer.style.color = color;
+        arrowContainer.title = `old rating was: ${movie.oldRating}`;
         imdb.appendChild(arrowContainer);
     }
 
