@@ -27,11 +27,12 @@ function clearCacheFunction() {
                 
                 item.timestamp = null;
 
-                chrome.storage.local.set(item);
+                var updatedItem = {};
+                updatedItem[key] = item;
+                chrome.storage.local.set(updatedItem);
             }
         }
     });
 
     //chrome.storage.local.clear();
 };
-

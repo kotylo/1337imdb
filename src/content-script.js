@@ -8,7 +8,7 @@ for (let i = 0; i < trElements.length; i++) {
     var [td] = tr.getElementsByClassName("name");
     if (td == null) {
         continue;
-    }
+    }    
 
     var moveieName = td.textContent;
 
@@ -74,14 +74,17 @@ function showRating(movie) {
 
     let ratingCountPercentage = getOpacityPercentage(movie.ratingCount);
     let alphaColor = getColorFromPercentage(ratingCountPercentage);
-    imdb.style.backgroundColor = `#F5C518${alphaColor}`;
+
+    let backgroundColorObj = getColorBasedOnGenre(movie.genres);
+
+    imdb.style.backgroundColor = `${backgroundColorObj.backgroundColor}${alphaColor}`;
 
     imdb.style.border = "1px solid black";
     imdb.style.padding = "5px";
     imdb.style.marginRight = "5px";
     imdb.style.borderRadius = "3px";
     imdb.style.fontSize = "12px";
-    imdb.style.color = "black";
+    imdb.style.color = backgroundColorObj.color;
     imdb.style.textAlign = "center";
     imdb.style.verticalAlign = "middle";
     imdb.style.lineHeight = "3px";
@@ -112,6 +115,24 @@ function showRating(movie) {
         votesContainer.style.marginLeft = "5px";
         imdb.appendChild(votesContainer);
     }
+}
+
+function getColorBasedOnGenre(genres) {
+    let color = {
+        backgroundColor: "#F5C518",
+        color: "black"
+    };
+    if (!genres){
+        return color;
+    }
+
+    if (genres.includes("Horror")) {
+        color = {
+            backgroundColor: "#674EA7",
+            color: "white"
+        }
+    }
+    return color;
 }
 
 function getColorFromPercentage(percentage) {
@@ -309,6 +330,14 @@ function getMovieInfoFromIMDB(movie) {
                     movie.releaseDate = releaseDate;
                 }
             }
+
+            // get genre
+            let genres = parsedJson.genre;
+            if (genres != null) {
+                console.log(`genres for movie ${movie.imdbName}: ${genres}`);
+                movie.genres = genres;
+            }
+
             return movie;
         });
     })
@@ -357,7 +386,7 @@ function findLinkWithFuzziness(links, movie, fuzzyValue){
             }
         }
 
-        const maxLinksToCheck = 15;
+        const maxLinksToCheck = 25;
         if (i > maxLinksToCheck){
             if (fuzzyMatches.length == 0){
                 console.log(`skipping more than ${maxLinksToCheck} links for movie '${movie.name}' with no matches.`);
