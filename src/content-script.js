@@ -75,7 +75,9 @@ function showRating(movie) {
     let ratingCountPercentage = getOpacityPercentage(movie.ratingCount);
     let alphaColor = getColorFromPercentage(ratingCountPercentage);
 
-    let backgroundColorObj = getColorBasedOnGenre(movie.genres);
+    let backgroundColorObj = getColorBasedOnGenre(movie.genres, ratingCountPercentage);
+
+    //let textColorBasedOnOpacity = 
 
     imdb.style.backgroundColor = `${backgroundColorObj.backgroundColor}${alphaColor}`;
 
@@ -117,22 +119,46 @@ function showRating(movie) {
     }
 }
 
-function getColorBasedOnGenre(genres) {
+function getColorBasedOnGenre(genres, alphaPercentage) {
+    var orangeBg = "#F5C518";
     let color = {
-        backgroundColor: "#F5C518",
-        color: "black"
+        backgroundColor: orangeBg,
+        color: getTextColorBasedOnBackgroundColor(orangeBg, alphaPercentage)
     };
     if (!genres){
         return color;
     }
 
-    if (genres.includes("Horror")) {
+    if (genres.includes("Horror") && genres.length <= 2) {
+        darkPurpleBg = "#674EA7";
         color = {
-            backgroundColor: "#674EA7",
-            color: "white"
+            backgroundColor: darkPurpleBg,
+            color: getTextColorBasedOnBackgroundColor(darkPurpleBg, alphaPercentage)
         }
     }
     return color;
+}
+
+function getTextColorBasedOnBackgroundColor(backgroundColor, alphaPercentage) {
+    if (alphaPercentage == null) {
+        alphaPercentage = 100;
+    }
+    let color = "black";
+    let rgb = hexToRgb(backgroundColor);
+    let brightness = (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000;
+    if (brightness < 100 * alphaPercentage/100) {
+        color = "white";
+    }
+    return color;
+}
+
+function hexToRgb(hex) {
+    var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16)
+    } : null;
 }
 
 function getColorFromPercentage(percentage) {
@@ -155,7 +181,7 @@ function getOpacityPercentage(ratingCount) {
 
 function getMovieInfo(movie) {
     // //in case you need to debug some specific movie:
-    // if (movie.name.indexOf("One Shot") >= 0) {
+    // if (movie.name.toLowerCase().indexOf("look".toLowerCase()) >= 0) {
     //     return getMovieInfoFromIMDB(movie);
     // }
     // return;
@@ -245,6 +271,9 @@ function getMovieInfoFromIMDB(movie) {
         let a = findLinkWithFuzziness(links, movie, 0.75);
         if (a == null){
             a = findLinkWithFuzziness(links, movie, 0.5);
+        }
+        if (a == null && links.length === 1) {
+            a = getAElementFromLink(links[0]);
         }
 
         if (a == null){
@@ -359,31 +388,60 @@ function getMovieInfoFromIMDB(movie) {
     });
 }
 
+function getAElementFromLink(link){
+    let aElements = link.getElementsByTagName("a");
+    if (aElements.length == 0) {
+        return null;
+    }
+
+    for (let j = 0; j < aElements.length; j++) {
+        const aElement = aElements[j];
+        if (aElement.textContent == ""){
+            continue;
+        }
+
+        return aElement;
+    }
+
+    return null;
+}
+
+function getMovieNameWithoutYear(movieName){
+    // check if year is in valid ranges
+    let year = movieName.match(/\d{4}/);
+    if (year != null) {
+        yearNum = parseInt(year[0]);
+        // remove year if valid
+        if (yearNum != NaN && yearNum >= 1900 && yearNum <= 2100) {
+            movieName = movieName.replace(yearNum, "");
+        }
+    }
+    return movieName.trim();
+}
+
+
 function findLinkWithFuzziness(links, movie, fuzzyValue){
     let a = null;
     let fuzzyMatches = [];
     let i = 0;
     for (i = 0; i < links.length; i++) {
-        let link = links[i];
-        let aElements = link.getElementsByTagName("a");
+        const link = links[i];
 
-        for (let j = 0; j < aElements.length; j++) {
-            let aElement = aElements[j];
-            if (aElement.textContent == ""){
-                continue;
-            }
+        const aElement = getAElementFromLink(link);
+        if (aElement == null) {
+            continue;
+        }
 
-            let linkMovieName = getMovieName(aElement.textContent);
-            let currentMovieNameWithoutYear = movie.name.replace(/\s\d{4}\s*$/g, "");
-            let val = fuzzyMatch(linkMovieName, currentMovieNameWithoutYear);
-            if (val >= fuzzyValue) {
-                fuzzyMatches.push({
-                    value: val,
-                    a: aElement,
-                    linkMovieName: linkMovieName
-                });
-                break;
-            }
+        const linkMovieName = getMovieName(aElement.textContent);
+        const currentMovieNameWithoutYear = getMovieNameWithoutYear(movie.name);
+        const val = fuzzyMatch(linkMovieName, currentMovieNameWithoutYear);
+        if (val >= fuzzyValue) {
+            fuzzyMatches.push({
+                value: val,
+                a: aElement,
+                linkMovieName: linkMovieName,
+                position: i
+            });
         }
 
         const maxLinksToCheck = 25;
@@ -399,7 +457,7 @@ function findLinkWithFuzziness(links, movie, fuzzyValue){
         fuzzyMatches.sort((a, b) => b.value - a.value);
         const match = fuzzyMatches[0];
         a = match.a;
-        console.log(`found a match (${match.linkMovieName}) with score ${match.value} for movie '${movie.name}' on the ${i} position`);
+        console.log(`found a match (${match.linkMovieName}) with score ${match.value} for movie '${movie.name}' on the ${match.position} position (out of ${links.length} and ${fuzzyMatches.length} matches)`);
     }
 
     return a;
@@ -452,8 +510,19 @@ function getMovieName(rawName) {
     // remove everything after year in the movieName
     let year = movieName.match(/\s\d{4}\s/);
     if (year != null && year.length > 0) {
-        movieName = movieName.substring(0, year.index + year[0].length);
+        // check if year is valid
+        let yearStr = year[0].trim();
+        let yearNum = parseInt(yearStr);
+        if (yearNum != NaN && yearNum > 1920 && yearNum < 2100) {
+            movieName = movieName.substring(0, year.index + year[0].length);
+        }
     }
+    // remove everyting in between square brackets
+    movieName = movieName.replace(/\[.*\]/g, "");
+
+    // remove apostrophe surrounding a word
+    movieName = movieName.replace(/\s'(\w+)'/g, " $1");
+
     movieName = movieName.trim();
     return movieName;
 }
