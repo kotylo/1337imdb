@@ -28,7 +28,12 @@
                 "*://1337xx.to/*",
                 "*://www.1337xx.to/*"
             ],
-            "js": ["libraries/fuzzyset.js", "content-script.js"]
+            "js": [
+                "libraries/fuzzyset.js",
+                "utils/groupBy.js",
+                "utils/promiseTimeout.js",
+                "content-script.js"
+            ]
         }
     ],
     "host_permissions": ["https://www.imdb.com/*"]

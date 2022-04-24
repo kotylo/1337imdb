@@ -1,0 +1,1 @@
+const promiseTimeout = time => () => new Promise(resolve => setTimeout(resolve, time));

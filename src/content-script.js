@@ -33,22 +33,37 @@ for (let i = 0; i < trElements.length; i++) {
 document.body.style.backgroundColor = "orange";
 
 // Start loading all the movies from the page
-moviesToCall.map(m => getMovieInfo(m));
+loadAllMovies(moviesToCall);
 
 // ************
 // functions
 // ************
 
-const promiseTimeout = time => () => new Promise(resolve => setTimeout(resolve, time));
+function loadAllMovies(moviesToCall) {
+    let groupedMovies = groupBy(moviesToCall, "name");
+    for (const key in groupedMovies) {
+        var movies = groupedMovies[key];
+        console.log(`Loading movie '${key}' with groupped ${movies.length} movies`);
+        (originalMovies => getMovieInfo(movies[0]).then(loadedMovie => {
+            originalMovies.forEach(domMovie => {
+                showRating(loadedMovie, domMovie.iconElement);
+            });
+        }))(movies);
+    };
+}
 
-function showRating(movie) {
+function showRating(movie, iconElement) {
+    if (!movie){
+        // skip not loaded movies
+        return;
+    }
     let link = document.createElement("a");
     link.href = `https://www.imdb.com${movie.href}`;
     link.target = "_blank";
     if (movie.imdbName != null) {
         link.title = `${movie.imdbName} on IMDB`;
     }
-    insertAfter(link, movie.iconElement);
+    insertAfter(link, iconElement);
 
     let imdb = document.createElement("div");
     if (movie.rating == null) {
@@ -196,16 +211,16 @@ function getMovieInfo(movie) {
                 //console.log(`Updating movie ${movie.name} in cache...`);
                 const oldMovie = cachedItem.movie;
                 chrome.storage.local.remove(movie.name);
-                return getMovieInfoFromIMDB(movie).then((m) => {
-                    // in case the rating value changed, update the local storage
-                    updateMovieInLocalStorage(m, oldMovie);
-                });
+                return getMovieInfoFromIMDB(movie)
+                    .then(m => {
+                        // in case the rating value changed, update the local storage
+                        updateMovieInLocalStorage(m, oldMovie);
+                    });
             } else {
-                // merge current movie object with the local storage one, to have the actual iconElement from DOM
+                // merge the local storage movie object with current one, to have the actual iconElement from DOM
                 let mergedMovie = Object.assign(cachedItem.movie, movie);
-                showRating(mergedMovie);
+                return mergedMovie;
             }
-            return;
         }
     },
     () => {
@@ -383,7 +398,6 @@ function getMovieInfoFromIMDB(movie) {
         });
 
         console.log(`Saved: ${movie.name} | rating: ${movie.rating}`);
-        showRating(movie);
         return movie;
     });
 }
