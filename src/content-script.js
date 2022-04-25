@@ -215,6 +215,7 @@ function getMovieInfo(movie) {
                     .then(m => {
                         // in case the rating value changed, update the local storage
                         updateMovieInLocalStorage(m, oldMovie);
+                        return m;
                     });
             } else {
                 // merge the local storage movie object with current one, to have the actual iconElement from DOM
