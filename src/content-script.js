@@ -196,7 +196,7 @@ function getOpacityPercentage(ratingCount) {
 
 function getMovieInfo(movie) {
     // //in case you need to debug some specific movie:
-    // if (movie.name.toLowerCase().indexOf("look".toLowerCase()) >= 0) {
+    // if (movie.name.toLowerCase().indexOf("blonde".toLowerCase()) >= 0) {
     //     return getMovieInfoFromIMDB(movie);
     // }
     // return;
@@ -278,7 +278,7 @@ function getMovieInfoFromIMDB(movie) {
     .then(html => {
         let parser = new DOMParser();
         let doc = parser.parseFromString(html, "text/html");
-        let links = doc.getElementsByClassName("findResult");
+        let links = doc.getElementsByClassName("ipc-metadata-list-summary-item__c");
         if (links.length == 0) {
             console.error(`no links for movie '${movie.name}'. ${getLinkToImdbText(movie.name)}`);
             return;
@@ -302,11 +302,12 @@ function getMovieInfoFromIMDB(movie) {
             console.error("href is null");
             return;
         }
-        let [id] = href.split("/");
-        if (id == null) {
-            console.error("id is null");
+        let idMatch = href.match("title/(\\w+)");
+        if (idMatch.length < 2){
+            console.error("id is not found");
             return;
         }
+        let id = idMatch[1];
         movie.id = id;
         movie.href = href;
         movie.imdbName = getMovieName(a.textContent);
