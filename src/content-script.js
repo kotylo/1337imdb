@@ -196,10 +196,10 @@ function getOpacityPercentage(ratingCount) {
 
 function getMovieInfo(movie) {
     // //in case you need to debug some specific movie:
-    // if (movie.name.toLowerCase().indexOf("blonde".toLowerCase()) >= 0) {
+    // if (movie.name.toLowerCase().indexOf("ash".toLowerCase()) >= 0) {
     //     return getMovieInfoFromIMDB(movie);
     // }
-    // return;
+    // return Promise.resolve();
     return readLocalStorage(movie.name).then(cachedItem => {
         if (cachedItem !== undefined) {
             // in case the timestamp is older than 1 day remove the movie from the cache
@@ -278,7 +278,11 @@ function getMovieInfoFromIMDB(movie) {
     .then(html => {
         let parser = new DOMParser();
         let doc = parser.parseFromString(html, "text/html");
-        let links = doc.getElementsByClassName("ipc-metadata-list-summary-item__c");
+        let links = doc.getElementsByClassName("findResult");
+        if (links.length == 0){
+            // try alternative class name
+            links = doc.getElementsByClassName("ipc-metadata-list-summary-item__c");
+        }
         if (links.length == 0) {
             console.error(`no links for movie '${movie.name}'. ${getLinkToImdbText(movie.name)}`);
             return;
