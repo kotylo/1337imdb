@@ -90,18 +90,15 @@ function showRating(movie, iconElement) {
     let ratingCountPercentage = getOpacityPercentage(movie.ratingCount);
     let alphaColor = getColorFromPercentage(ratingCountPercentage);
 
-    let backgroundColorObj = getColorBasedOnGenre(movie.genres, ratingCountPercentage);
+    let boxColorObj = getColorBasedOnGenre(movie.genres, ratingCountPercentage, alphaColor);
 
-    //let textColorBasedOnOpacity = 
-
-    imdb.style.backgroundColor = `${backgroundColorObj.backgroundColor}${alphaColor}`;
-
+    imdb.style.background = `${boxColorObj.background}`;
     imdb.style.border = "1px solid black";
     imdb.style.padding = "5px";
     imdb.style.marginRight = "5px";
     imdb.style.borderRadius = "3px";
     imdb.style.fontSize = "12px";
-    imdb.style.color = backgroundColorObj.color;
+    imdb.style.color = boxColorObj.color;
     imdb.style.textAlign = "center";
     imdb.style.verticalAlign = "middle";
     imdb.style.lineHeight = "3px";
@@ -134,20 +131,21 @@ function showRating(movie, iconElement) {
     }
 }
 
-function getColorBasedOnGenre(genres, alphaPercentage) {
+function getColorBasedOnGenre(genres, alphaPercentage, alpha2LetterHexColor) {
     var orangeBg = "#F5C518";
     let color = {
-        backgroundColor: orangeBg,
+        background: `${orangeBg}${alpha2LetterHexColor}`,
         color: getTextColorBasedOnBackgroundColor(orangeBg, alphaPercentage)
     };
     if (!genres){
         return color;
     }
 
-    if (genres.includes("Horror") && genres.length <= 2) {
+    if (genres.includes("Horror")) {
         darkPurpleBg = "#674EA7";
+        var horrorPercentage = 1 / genres.length * 100;
         color = {
-            backgroundColor: darkPurpleBg,
+            background: `linear-gradient(90deg, ${darkPurpleBg}${alpha2LetterHexColor} ${horrorPercentage}%, ${orangeBg}${alpha2LetterHexColor} ${horrorPercentage}%)`,
             color: getTextColorBasedOnBackgroundColor(darkPurpleBg, alphaPercentage)
         }
     }
