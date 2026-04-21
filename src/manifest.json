@@ -26,7 +26,19 @@
                 "*://1337x.to/*",
                 "*://www.1337x.to/*",
                 "*://1337xx.to/*",
-                "*://www.1337xx.to/*"
+                "*://www.1337xx.to/*",
+                "*://www.1377x.to/*",
+                "*://1337x.st/*",
+                "*://1337x-official.com/*",
+                "*://1337x.pages.dev/*",
+                "*://www.1337x.tw/*",
+                "*://www.1337x.pro/*",
+                "*://www.1377x.is/*",
+                "*://1337x.torrentbay.st/*",
+                "*://1337x.torrentsbay.org/*",
+                "*://1337x.proxyninja.org/*",
+                "*://1337x.proxyninja.net/*",
+                "*://1337x.unblockninja.com/*"
             ],
             "js": [
                 "libraries/fuzzyset.js",
@@ -36,5 +48,5 @@
             ]
         }
     ],
-    "host_permissions": ["https://www.imdb.com/*"]
+    "host_permissions": ["https://www.imdb.com/*", "https://v3.sg.media-imdb.com/*", "https://graphql.imdb.com/*"]
 }

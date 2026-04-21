@@ -13,14 +13,19 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         "from the extension");
 
     if (request.action === "findMovie") {
-        // todo: add &ttype=ft (film titles?) to the options?
-        fetch(`https://www.imdb.com/find?q=${request.movie.name}&s=tt&ttype=ft&ttype=tv&ref_=fn_ft&count=3`)
+        const query = encodeURIComponent(request.movie.name);
+        fetch(`https://v3.sg.media-imdb.com/suggestion/x/${query}.json`)
             .then(res => res.text())
-            .then(html => sendResponse(html));
+            .then(json => sendResponse(json));
     } else if (request.action === "getMovie") {
-        fetch(`https://www.imdb.com${request.movie.href}`)
+        const query = `query { title(id: "${request.movie.id}") { ratingsSummary { aggregateRating voteCount } releaseDate { day month year } titleGenres { genres { genre { text } } } } }`;
+        fetch('https://graphql.imdb.com/', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ query: query })
+        })
             .then(res => res.text())
-            .then(html => sendResponse(html));
+            .then(json => sendResponse(json));
     }
 
     return true;

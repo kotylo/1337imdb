@@ -273,46 +273,44 @@ function getMovieInfoFromIMDB(movie) {
             }
         });
     })
-    .then(html => {
-        let parser = new DOMParser();
-        let doc = parser.parseFromString(html, "text/html");
-        let links = doc.getElementsByClassName("findResult");
-        if (links.length == 0){
-            // try alternative class name
-            links = doc.getElementsByClassName("ipc-metadata-list-summary-item__c");
-        }
-        if (links.length == 0) {
-            console.error(`no links for movie '${movie.name}'. ${getLinkToImdbText(movie.name)}`);
+    .then(responseText => {
+        let data;
+        try {
+            data = JSON.parse(responseText);
+        } catch (e) {
+            console.error(`Failed to parse findMovie response for movie '${movie.name}'`);
             return;
         }
 
-        let a = findLinkWithFuzziness(links, movie, 0.75);
-        if (a == null){
-            a = findLinkWithFuzziness(links, movie, 0.5);
-        }
-        if (a == null && links.length === 1) {
-            a = getAElementFromLink(links[0]);
-        }
-
-        if (a == null){
-            console.error(`couldn't find any matching links. Try investigating this link: ${getLinkToImdbText(movie.name)}`);
+        let results = data.d;
+        if (!results || results.length == 0) {
+            console.error(`no results for movie '${movie.name}'.`);
             return;
         }
 
-        let href = a.getAttribute("href");
-        if (href == null) {
-            console.error("href is null");
+        // Filter to movies and TV shows (matching the old ttype=ft&ttype=tv filter)
+        let filtered = results.filter(r => r.qid === "movie" || r.qid === "tvSeries" || r.qid === "tvMiniSeries");
+        if (filtered.length == 0) {
+            filtered = results;
+        }
+
+        let bestMatch = findBestSuggestionMatch(filtered, movie, 0.75);
+        if (bestMatch == null) {
+            bestMatch = findBestSuggestionMatch(filtered, movie, 0.5);
+        }
+        if (bestMatch == null && filtered.length > 0) {
+            bestMatch = filtered[0];
+        }
+
+        if (bestMatch == null) {
+            console.error(`couldn't find any matching results for movie '${movie.name}'`);
             return;
         }
-        let idMatch = href.match("title/(\\w+)");
-        if (idMatch.length < 2){
-            console.error("id is not found");
-            return;
-        }
-        let id = idMatch[1];
+
+        let id = bestMatch.id;
         movie.id = id;
-        movie.href = href;
-        movie.imdbName = getMovieName(a.textContent);
+        movie.href = `/title/${id}/`;
+        movie.imdbName = getMovieName(bestMatch.l);
         return movie;
     })
     .then(movie => {
@@ -329,59 +327,39 @@ function getMovieInfoFromIMDB(movie) {
                 }
             });
         })
-        .then(html => {
-            // find the rating inside the script tag with type="application/ld+json"
-            let parser = new DOMParser();
-            let doc = parser.parseFromString(html, "text/html");
-
-            let scripts = doc.getElementsByTagName("script");
-            if (scripts.length == 0) {
-                console.error("there are no script tags");
+        .then(responseText => {
+            let data;
+            try {
+                data = JSON.parse(responseText);
+            } catch (e) {
+                console.error(`Failed to parse getMovie response for movie '${movie.name}'`);
                 return;
             }
 
-            var script = getScriptWithType(scripts, "application/ld+json");
-            if (script == null) {
-                console.error("script is null");
+            let titleData = data?.data?.title;
+            if (titleData == null) {
+                console.error(`No title data returned for movie '${movie.name}'`);
                 return;
             }
 
-            let [json] = script.textContent.split("\n");
-            if (json == null) {
-                console.error("json is null");
-                return;
-            }
-            var parsedJson = JSON.parse(json);
-            if (parsedJson.aggregateRating != null) {    
-                let rating = parsedJson.aggregateRating.ratingValue;
-                if (rating == null) {
-                    console.error("rating is null");
-                    return;
-                }
-
-                let ratingCount = parsedJson.aggregateRating.ratingCount;
-                if (ratingCount == null) {
-                    console.error("ratingCount is null");
-                    return;
-                }
-
-                movie.rating = rating;
-                movie.ratingCount = ratingCount;
-            }else{
-                // in case the movie is not rated, set the rating to 0
+            if (titleData.ratingsSummary?.aggregateRating != null) {
+                movie.rating = titleData.ratingsSummary.aggregateRating;
+                movie.ratingCount = titleData.ratingsSummary.voteCount;
+            } else {
                 movie.rating = null;
                 movie.ratingCount = null;
 
                 // try to get the release date
-                let releaseDate = parsedJson.datePublished;
-                if (releaseDate != null) {
-                    movie.releaseDate = releaseDate;
+                let rd = titleData.releaseDate;
+                if (rd != null) {
+                    movie.releaseDate = `${rd.year}-${String(rd.month).padStart(2, '0')}-${String(rd.day).padStart(2, '0')}`;
                 }
             }
 
-            // get genre
-            let genres = parsedJson.genre;
-            if (genres != null) {
+            // get genres
+            let genreList = titleData.titleGenres?.genres;
+            if (genreList != null && genreList.length > 0) {
+                let genres = genreList.map(g => g.genre.text);
                 console.log(`genres for movie ${movie.imdbName}: ${genres}`);
                 movie.genres = genres;
             }
@@ -479,6 +457,24 @@ function findLinkWithFuzziness(links, movie, fuzzyValue){
     }
 
     return a;
+}
+
+function findBestSuggestionMatch(results, movie, fuzzyValue) {
+    let bestMatch = null;
+    let bestScore = -1;
+    const currentMovieNameWithoutYear = getMovieNameWithoutYear(movie.name);
+
+    for (let i = 0; i < results.length; i++) {
+        const result = results[i];
+        const resultName = getMovieName(result.l);
+        const score = fuzzyMatch(resultName, currentMovieNameWithoutYear);
+        if (score >= fuzzyValue && score > bestScore) {
+            bestScore = score;
+            bestMatch = result;
+        }
+    }
+
+    return bestMatch;
 }
 
 function getLinkToImdbText(movieName) {
