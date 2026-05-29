@@ -35,9 +35,41 @@ document.body.style.backgroundColor = "orange";
 // Start loading all the movies from the page
 loadAllMovies(moviesToCall);
 
+// Add sort by IMDB rating button
+addSortByRatingButton(featuredList);
+
 // ************
 // functions
 // ************
+
+function addSortByRatingButton(featuredList) {
+    let button = document.createElement("button");
+    button.textContent = "Sort by IMDB Rating";
+    button.style.margin = "10px 0";
+    button.style.padding = "8px 16px";
+    button.style.cursor = "pointer";
+    button.style.fontWeight = "bold";
+    button.addEventListener("click", () => sortTableByRating(featuredList));
+    featuredList.parentNode.insertBefore(button, featuredList);
+}
+
+function sortTableByRating(featuredList) {
+    let tbody = featuredList.querySelector("tbody") || featuredList;
+    let rows = Array.from(tbody.querySelectorAll("tr")).filter(row => row.querySelector("td.name"));
+
+    rows.sort((a, b) => {
+        let ratingA = parseFloat(a.dataset.imdbRating) || -1;
+        let ratingB = parseFloat(b.dataset.imdbRating) || -1;
+        if (ratingB !== ratingA) {
+            return ratingB - ratingA;
+        }
+        let nameA = (a.dataset.movieName || "").toLowerCase();
+        let nameB = (b.dataset.movieName || "").toLowerCase();
+        return nameA.localeCompare(nameB);
+    });
+
+    rows.forEach(row => tbody.appendChild(row));
+}
 
 function loadAllMovies(moviesToCall) {
     let groupedMovies = groupBy(moviesToCall, "name");
@@ -56,6 +88,13 @@ function showRating(movie, iconElement) {
     if (!movie){
         // skip not loaded movies
         return;
+    }
+
+    // Store rating on the row for sorting
+    let row = iconElement.closest("tr");
+    if (row) {
+        row.dataset.imdbRating = movie.rating != null ? movie.rating : "-1";
+        row.dataset.movieName = movie.name || "";
     }
     let link = document.createElement("a");
     link.href = `https://www.imdb.com${movie.href}`;
